@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Sized
 
 import numpy as np
 
@@ -45,6 +46,21 @@ def load_all_documents():
 
     return documents
 
+def find_source_filter(question: str, documents: list[dict]) -> Sized | None:
+    question_lower = question.lower()
+
+    sources = {document["source"] for document in documents}
+
+    matching_sources = [
+        source
+        for source in sources
+        if source.lower() in question_lower
+    ]
+
+    if not matching_sources:
+        return None
+
+    return max(matching_sources, key=len)
 
 def main():
 
@@ -88,18 +104,15 @@ def main():
         if question.lower() == "exit":
             break
 
-        query_embedding = embedding_model.encode(
-            [question],
-        )
+        query_embedding = embedding_model.encode([question])
+        query_embedding = np.asarray(query_embedding, dtype="float32")
 
-        query_embedding = np.asarray(
-            query_embedding,
-            dtype="float32",
-        )
+        source_filter = find_source_filter(question, documents)
 
         results = vector_store.search(
             query_embedding,
             TOP_K,
+            source_filter=source_filter,
         )
 
         context = "\n\n".join(
